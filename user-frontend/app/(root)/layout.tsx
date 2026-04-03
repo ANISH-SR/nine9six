@@ -17,13 +17,12 @@ export default function RootLayout({
 }>) {
   const network = WalletAdapterNetwork.Mainnet;
 
-  // You can also provide a custom RPC endpoint.
-  const endpoint = "your_rpc_url";
-
-  const wallets = useMemo(
-      () => [],
-      [network]
+  const endpoint = useMemo(
+    () => process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? clusterApiUrl(network),
+    [network]
   );
+
+  const wallets = useMemo(() => [], []);
 
     return (
     <ConnectionProvider endpoint={endpoint}>

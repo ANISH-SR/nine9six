@@ -20,7 +20,13 @@ nine9six is a marketplace-style demo where **users** post micro-tasks (thumbnail
 
 ## Backend environment variables
 
-Create a `.env` in `backend/` (Prisma reads `DATABASE_URL` from here) with at least:
+Copy the template and edit it (Prisma and the app load `backend/.env`):
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Set at least `DATABASE_URL` before running `npx prisma migrate deploy`. The file should contain:
 
 | Variable        | Purpose |
 | --------------- | ------- |
@@ -78,6 +84,9 @@ Schema and migrations live under `backend/prisma/`. Models include `User`, `Work
 - Review hard-coded wallet addresses and S3 bucket names before deploying.
 - CORS is enabled broadly in the API; tighten origins for production.
 
-## License
+## License - MIT
 
 See individual `package.json` files (for example `backend/package.json`) for declared package metadata; this repository may not include a top-level license file.
+
+
+Copyright: HumbleFool07 2026
