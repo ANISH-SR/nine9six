@@ -3,7 +3,8 @@ import { PrismaClient } from "@prisma/client";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { workerMiddleware } from "../middleware";
-import { TOTAL_DECIMALS, WORKER_JWT_SECRET } from "../config";
+import { PARENT_WALLET_ADDRESS, TOTAL_DECIMALS, WORKER_JWT_SECRET } from "../config";
+import { sendTreasuryTransfer } from "../owsPayout";
 import { getNextTask } from "../db";
 import { createSubmissionInput } from "../types";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
@@ -40,35 +41,58 @@ router.post("/payout", workerMiddleware, async (req, res) => {
         })
     }
 
+    const lamports = Math.floor(
+        (1000_000_000 * worker.pending_amount) / TOTAL_DECIMALS
+    );
+
     const transaction = new Transaction().add(
         SystemProgram.transfer({
-            fromPubkey: new PublicKey("2KeovpYvrgpziaDsq8nbNMP4mc48VNBVXb5arbqrg9Cq"),
+            fromPubkey: new PublicKey(PARENT_WALLET_ADDRESS),
             toPubkey: new PublicKey(worker.address),
-            lamports: 1000_000_000 * worker.pending_amount / TOTAL_DECIMALS,
+            lamports,
         })
     );
 
-
     console.log(worker.address);
 
-    const keypair = Keypair.fromSecretKey(decode(privateKey));
+    const rpcUrl = process.env.RPC_URL ?? "";
 
-    // TODO: There's a double spending problem here
-    // The user can request the withdrawal multiple times
-    // Can u figure out a way to fix it?
     let signature = "";
-    try {
-        signature = await sendAndConfirmTransaction(
-            connection,
-            transaction,
-            [keypair],
-        );
-    
-     } catch(e) {
+
+    const owsResult = await sendTreasuryTransfer({
+        connection,
+        fromPublicKey: PARENT_WALLET_ADDRESS,
+        toAddress: worker.address,
+        lamports,
+        rpcUrl,
+    });
+
+    if ("signature" in owsResult) {
+        signature = owsResult.signature;
+    } else if (owsResult.error === "OWS_NOT_CONFIGURED") {
+        if (!privateKey) {
+            return res.status(503).json({
+                message:
+                    "Treasury not configured: set OWS_PLATFORM_WALLET_NAME + OWS_WALLET_PASSPHRASE or legacy privateKey",
+            });
+        }
+        const keypair = Keypair.fromSecretKey(decode(privateKey));
+        try {
+            signature = await sendAndConfirmTransaction(
+                connection,
+                transaction,
+                [keypair]
+            );
+        } catch {
+            return res.json({
+                message: "Transaction failed",
+            });
+        }
+    } else {
         return res.json({
-            message: "Transaction failed"
-        })
-     }
+            message: owsResult.error,
+        });
+    }
     
     console.log(signature)
 

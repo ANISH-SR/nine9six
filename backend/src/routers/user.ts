@@ -3,16 +3,15 @@ import { PrismaClient } from "@prisma/client";
 import { Router } from "express";
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import jwt from "jsonwebtoken";
-import { JWT_SECRET, TOTAL_DECIMALS } from "../config";
+import { JWT_SECRET, PARENT_WALLET_ADDRESS, TASK_DEPOSIT_LAMPORTS, TOTAL_DECIMALS } from "../config";
 import { authMiddleware } from "../middleware";
+import { owsBackendApiKeyMiddleware } from "../middleware/owsBackendApiKey";
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import { createTaskInput } from "../types";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 
 const connection = new Connection(process.env.RPC_URL ?? "");
 
-const PARENT_WALLET_ADDRESS = "2KeovpYvrgpziaDsq8nbNMP4mc48VNBVXb5arbqrg9Cq";
-    
 const DEFAULT_TITLE = "Select the most clickable thumbnail";
 
 const s3Client = new S3Client({
@@ -123,7 +122,7 @@ router.post("/task", authMiddleware, async (req, res) => {
 
     console.log(transaction);
 
-    if ((transaction?.meta?.postBalances[1] ?? 0) - (transaction?.meta?.preBalances[1] ?? 0) !== 100000000) {
+    if ((transaction?.meta?.postBalances[1] ?? 0) - (transaction?.meta?.preBalances[1] ?? 0) !== TASK_DEPOSIT_LAMPORTS) {
         return res.status(411).json({
             message: "Transaction signature/amount incorrect"
         })
@@ -173,6 +172,36 @@ router.post("/task", authMiddleware, async (req, res) => {
     })
 
 })
+
+/** Marks a task approved (closed) by the creator. Optional OWS_BACKEND_API_KEY when set. */
+router.post("/task/:taskId/approve", authMiddleware, owsBackendApiKeyMiddleware, async (req, res) => {
+    const taskId = Number(req.params.taskId);
+    // @ts-ignore
+    const userId = req.userId as number;
+
+    const task = await prismaClient.task.findFirst({
+        where: {
+            id: taskId,
+            user_id: userId,
+        },
+    });
+
+    if (!task) {
+        return res.status(404).json({
+            message: "Task not found",
+        });
+    }
+
+    await prismaClient.task.update({
+        where: { id: taskId },
+        data: { done: true },
+    });
+
+    res.json({
+        message: "Task approved",
+        taskId,
+    });
+});
 
 router.get("/presignedUrl", authMiddleware, async (req, res) => {
     // @ts-ignore
