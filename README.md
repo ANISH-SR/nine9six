@@ -8,6 +8,12 @@ nine9six is a marketplace-style demo where **users** post micro-tasks (thumbnail
 
 The **Pay 0.1 SOL** control triggers a standard Solana transfer via the wallet adapter; after confirmation, the app submits the task to the API with that transaction signature. Uploaded images appear as thumbnails next to the add tile once S3 upload completes.
 
+## UI preview (worker app — dashboard)
+
+![Worker dashboard: payout button, wallet connect, empty task queue](docs/images/worker-dashboard.png)
+
+Workers connect a wallet, complete tasks when the queue has work, and use **Pay me out** to request a treasury transfer for accumulated earnings (see backend payout / OWS configuration). When nothing is available, the app shows the empty-state message.
+
 ## Repository layout
 
 | Directory        | Role |

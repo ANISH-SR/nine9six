@@ -48,7 +48,7 @@ export const NextTask = () => {
     if (!currentTask) {
         return <div className="h-screen flex justify-center flex-col">
             <div className="w-full flex justify-center text-2xl">
-                Please check back in some time, there are no pending tasks at the momebt
+                Please check back in some time, there are no pending tasks at the moment
             </div>
         </div>
     }
